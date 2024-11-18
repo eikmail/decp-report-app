@@ -1,151 +1,77 @@
-import streamlit as st
+import hmac
+import numpy as np
 import pandas as pd
-import math
-from pathlib import Path
+import streamlit as st
+import time
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+st.markdown("# DECP statistics")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+def check_password():
+    """Returns `True` if the user had a correct password."""
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+    def login_form():
+        """Form with widgets to collect user information"""
+        with st.form("Credentials"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            st.form_submit_button("Log in", on_click=password_entered)
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        conn = st.connection("decp_database")
+        data = conn.query("select account_id,source_id from decp_report.account where user_name=:user_name and passwd = :passwd", ttl="10s",params={"user_name":st.session_state["username"],"passwd":st.session_state["password"]})
+        if 'account_id' in data and len(data['account_id'])>0 and data['account_id'][0]>0:
+            st.session_state["password_correct"] = True
+            st.session_state["source_id"] = data['source_id'][0]
         else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+            st.session_state["password_correct"] = False
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+    # Return True if the username + password is validated.
+    if st.session_state.get("password_correct", False):
+        return True
+
+    # Show inputs for username + password.
+    login_form()
+
+    if "password_correct" in st.session_state:
+        st.error("User not known or password incorrect")
+    return False
+
+
+if not check_password():
+    st.stop()
+
+
+# Main Streamlit app starts here
+
+if "source_id" in st.session_state and st.session_state.get("source_id", None) is not None:
+    source_id = st.session_state.get("source_id", None)
+
+    conn = st.connection("decp_database")
+    df = conn.query("select name from decp_report.source WHERE source_id = :source_id",params={"source_id":source_id})
+    source_name = df['name'][0]
+else:
+    # Get sources list
+    #conn = st.connection("decp_database")
+    #df = conn.query("select NULL as source_id ,'Choisissez' as name UNION select source_id,name from decp_report.source")
+
+    #source_name = st.selectbox("Sélectionnez une source de données",df["name"])
+    #source_id = df.loc[df["name"] == source_name, 'source_id'].iloc[0]
+    source_id = None
+
+if source_id is None:
+    st.write("Affichage de toutes les sources")
+
+    conn = st.connection("decp_database")
+    data = conn.query("select session_date,nb_records_dematis,per_errors_dematis,nb_records_pes,per_errors_pes from decp_report.v_stats_global", ttl="10s")
+
+    st.line_chart(data,x='session_date')
+    st.dataframe(data)
+else:
+    st.header(source_name)
+    
+    conn = st.connection("decp_database")
+    data = conn.query("SELECT session_date,nb_records,nb_errors,per_errors from decp_report.v_stats_all WHERE source_id = :source_id", ttl="10s", params={"source_id": source_id})
+    
+    st.line_chart(data,x='session_date')
+    st.dataframe(data)
