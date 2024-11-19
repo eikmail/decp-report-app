@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 import time
 
-st.markdown("# DECP statistics")
+st.markdown("# DECP statistiques flux")
 
 def check_password():
     """Returns `True` if the user had a correct password."""
