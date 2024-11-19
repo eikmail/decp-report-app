@@ -1,19 +1,22 @@
-# :earth_americas: GDP dashboard template
+# DECP statistics
 
-A simple Streamlit app showing the GDP of different countries in the world.
+A simple Streamlit app showing the statistics of processing decp sources.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gdp-dashboard-template.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://)
 
-### How to run it on your own machine
+### Fonctionnement
 
-1. Install the requirements
+1. Installer les librairies du projet
 
    ```
    $ pip install -r requirements.txt
    ```
 
-2. Run the app
+2. Lancer l'application
 
    ```
    $ streamlit run streamlit_app.py
    ```
+## Pre-requis
+
+L'application utilise la base de données decp_report déclarée dans k'application decp-rama
