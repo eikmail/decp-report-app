@@ -2,7 +2,7 @@
 
 A simple Streamlit app showing the statistics of processing decp sources.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://decp-report-app.streamlit.app/)
 
 ### Fonctionnement
 
