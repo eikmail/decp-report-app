@@ -72,11 +72,21 @@ if source_id is None:
         data = conn.query(query, ttl="10s")
         
         st.line_chart(data,x='session_date')
+
+    data = conn.query("SELECT decp_report.get_query_stats_global_per()", ttl="10s")
+
+    if 'get_query_stats_global_per' in data and len(data['get_query_stats_global_per'])>0:
+        query = data['get_query_stats_global_per'][0]
+        
+        data = conn.query(query, ttl="10s")
+        
         st.dataframe(data)
 else:
     st.header(source_name)
     
     conn = st.connection("decp_database")
-    data = conn.query("SELECT session_date,nb_records,nb_errors,per_errors from decp_report.v_stats_all WHERE source_id = :source_id",ttl="10s",params={"source_id":source_id})    
+    data = conn.query("SELECT session_date,nb_records from decp_report.v_stats_all WHERE source_id = :source_id",ttl="10s",params={"source_id":source_id})    
     st.line_chart(data,x='session_date')
+
+    data = conn.query("SELECT session_date,nb_records,nb_errors,((100 * nb_errors) / coalesce(nb_records,NULL)) as per_errors from decp_report.v_stats_all WHERE source_id = :source_id",ttl="10s",params={"source_id":source_id})    
     st.dataframe(data)
