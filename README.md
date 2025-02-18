@@ -19,4 +19,4 @@ A simple Streamlit app showing the statistics of processing decp sources.
    ```
 ## Pre-requis
 
-L'application utilise la base de données decp_report déclarée dans k'application decp-rama
+L'application utilise la base de données decp_report déclarée dans l'application decp-rama
